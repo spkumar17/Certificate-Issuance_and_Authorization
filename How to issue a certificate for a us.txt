@@ -4,9 +4,9 @@ Authentication:
 user end:
 ------------
 step:1
-Create private key for user (James):
-openssl genrsa -out James.key 2048
-openssl req -new -key James.key -out James.csr -subj "/CN=James"
+Create private key for user (John):
+openssl genrsa -out John.key 2048
+openssl req -new -key John.key -out John.csr -subj "/CN=John"
 
 then CERTIFICATE REQUEST and PRIVATE KEY will be created
 ---------
@@ -38,13 +38,13 @@ then run this file Kubectl apply -f "request.yml"
 request sent admin need to approve this 
 kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user$ kubectl get csr
 NAME    AGE   SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
-James   7s    kubernetes.io/kube-apiserver-client   kubernetes-admin   365d                Pending
+John   7s    kubernetes.io/kube-apiserver-client   kubernetes-admin   365d                Pending
 ---------------------------------------------------------------------------
 ADMIN end:
 -----------------
 As admin approve the request using 
 """
-kubectl certificate approve James
+kubectl certificate approve John
 
 """
 -------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ then
 
 kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user$ kubectl get csr
 NAME    AGE   SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
-James   46s   kubernetes.io/kube-apiserver-client   kubernetes-admin   365d                Approved,Issued
+John   46s   kubernetes.io/kube-apiserver-client   kubernetes-admin   365d                Approved,Issued
 -----------------------------------------------------------------------------------
 
 Export the issued certificate from the CertificateSigningRequest.
