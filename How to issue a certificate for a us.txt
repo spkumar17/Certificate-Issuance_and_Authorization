@@ -1,0 +1,207 @@
+How to issue a certificate for a user:
+Authentication:
+
+user end:
+------------
+step:1
+Create private key for user (James):
+openssl genrsa -out James.key 2048
+openssl req -new -key James.key -out James.csr -subj "/CN=James"
+
+then CERTIFICATE REQUEST and PRIVATE KEY will be created
+---------
+
+Create a CertificateSigningRequest:
+
+create a Yaml file with below manifest 
+
+"""
+
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: myuser  # replace with username
+spec:
+  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0KTUlJQ1ZqQ0NBVDRDQVFBd0VURVBNQTBHQTFVRUF3d0dZVzVuWld4aE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRgpBQU9DQVE4QU1JSUJDZ0tDQVFFQTByczhJTHRHdTYxakx2dHhWTTJSVlRWMDNHWlJTWWw0dWluVWo4RElaWjBOCnR2MUZtRVFSd3VoaUZsOFEzcWl0Qm0wMUFSMkNJVXBGd2ZzSjZ4MXF3ckJzVkhZbGlBNVhwRVpZM3ExcGswSDQKM3Z3aGJlK1o2MVNrVHF5SVBYUUwrTWM5T1Nsbm0xb0R2N0NtSkZNMUlMRVI3QTVGZnZKOEdFRjJ6dHBoaUlFMwpub1dtdHNZb3JuT2wzc2lHQ2ZGZzR4Zmd4eW8ybmlneFNVekl1bXNnVm9PM2ttT0x1RVF6cXpkakJ3TFJXbWlECklmMXBMWnoyalVnald4UkhCM1gyWnVVV1d1T09PZnpXM01LaE8ybHEvZi9DdS8wYk83c0x0MCt3U2ZMSU91TFcKcW90blZtRmxMMytqTy82WDNDKzBERHk5aUtwbXJjVDBnWGZLemE1dHJRSURBUUFCb0FBd0RRWUpLb1pJaHZjTgpBUUVMQlFBRGdnRUJBR05WdmVIOGR4ZzNvK21VeVRkbmFjVmQ1N24zSkExdnZEU1JWREkyQTZ1eXN3ZFp1L1BVCkkwZXpZWFV0RVNnSk1IRmQycVVNMjNuNVJsSXJ3R0xuUXFISUh5VStWWHhsdnZsRnpNOVpEWllSTmU3QlJvYXgKQVlEdUI5STZXT3FYbkFvczFqRmxNUG5NbFpqdU5kSGxpT1BjTU1oNndLaTZzZFhpVStHYTJ2RUVLY01jSVUyRgpvU2djUWdMYTk0aEpacGk3ZnNMdm1OQUxoT045UHdNMGM1dVJVejV4T0dGMUtCbWRSeEgvbUNOS2JKYjFRQm1HCkkwYitEUEdaTktXTU0xMzhIQXdoV0tkNjVoVHdYOWl4V3ZHMkh4TG1WQzg0L1BHT0tWQW9FNkpsYWFHdTlQVmkKdjlOSjVaZlZrcXdCd0hKbzZXdk9xVlA3SVFjZmg3d0drWm89Ci0tLS0tRU5EIENFUlRJRklDQVRFIFJFUVVFU1QtLS0tLQo=
+  signerName: kubernetes.io/kube-apiserver-client
+  expirationSeconds: 86400  # one day
+  usages:
+  - client auth
+
+"""
+Replace metadata name with actual username ( user to which we are creating request for )
+
+and change the Cert request field with CERTIFICATE REQUEST
+
+then run this file Kubectl apply -f "request.yml"
+-------------------------------------------------------------------------
+request sent admin need to approve this 
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user$ kubectl get csr
+NAME    AGE   SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
+James   7s    kubernetes.io/kube-apiserver-client   kubernetes-admin   365d                Pending
+---------------------------------------------------------------------------
+ADMIN end:
+-----------------
+As admin approve the request using 
+"""
+kubectl certificate approve James
+
+"""
+-------------------------------------------------------------------------------
+then 
+
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user$ kubectl get csr
+NAME    AGE   SIGNERNAME                            REQUESTOR          REQUESTEDDURATION   CONDITION
+James   46s   kubernetes.io/kube-apiserver-client   kubernetes-admin   365d                Approved,Issued
+-----------------------------------------------------------------------------------
+
+Export the issued certificate from the CertificateSigningRequest.
+
+"""
+
+kubectl get csr myuser -o jsonpath='{.status.certificate}'| base64 -d > myuser.crt
+
+"""
+kubectl get csr John -o yaml > Johnissuedcrt.yaml 
+
+---------------------------------------------------------------------------------------------------------
+Generally when we run Kubectl get pods who Kubernetes will know whether you are authorized user or not is using kubeconfig file 
+
+kubectl get pods --kubeconfig config .kube/config (path of file ) 
+--> this is how command will be in backend...
+Default path ($/HOME/.kube/config)
+if we have multiple kubeconfig files 
+we can use path by exposing as env variable 
+export KUBECONFIG= path
+--------------------------------------------------------------------------------------------------
+Authorization:
+level of Access 
+
+ABAC---> Attibute based -- associate a set of permission to the file ( policy file ) then we add it to API-Server and then we need to Restart API-server
+RBAC --->Most used (create a role (add permissions in role ) bind it to a user or Service account
+NODE----> to interact nodes with each other 
+Webhook---> uses open policy agent ( which acutally to access management )
+---------------------------------
+when we see the Manifest of API-server we will get to know the current method of authorization we are using 
+"""
+--authorization-mode=Node,RBAC
+
+"""
+if will follow the order as it was mentioned in the manifest
+------------------------------------
+
+ --authorization-policy-file=/path/to/policy.json
+this argument will let kubeapi-server know the file path of ABAC  
+-------------------------------------
+
+lets check John have access to create pods / read pods 
+
+"""
+
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl auth can-i get pods
+yes
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl auth whoami
+ATTRIBUTE   VALUE
+Username    kubernetes-admin
+Groups      [kubeadm:cluster-admins system:authenticated]
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl auth can-i get pods --as John
+no
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$
+
+"""
+as per above he don't have access 
+lets give him read access to pods 
+
+------------------------------
+Create a role and role binding 
+
+applied role and role binding
+
+''''
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: pod-reader
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+"""
+
+"""
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods
+  namespace: default
+subjects:
+- kind: User
+  name: John
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+"""
+how he can get the pods 
+
+"""
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl auth can-i get pods
+yes
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl auth whoami
+ATTRIBUTE   VALUE
+Username    kubernetes-admin
+Groups      [kubeadm:cluster-admins system:authenticated]
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl auth can-i get pods --as John
+no
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ vim podaccessrole.yaml
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ vim podaccessrolebinding.yaml
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl apply -f podaccessrole.yaml
+role.rbac.authorization.k8s.io/pod-reader created
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl get role
+NAME         CREATED AT
+pod-reader   2025-01-28T07:17:42Z
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl apply -f podaccessrolebinding.yaml
+rolebinding.rbac.authorization.k8s.io/read-pods created
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl get rolebinding
+NAME        ROLE              AGE
+read-pods   Role/pod-reader   32s
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl describe rolebinding read-pods
+Name:         read-pods
+Labels:       <none>
+Annotations:  <none>
+Role:
+  Kind:  Role
+  Name:  pod-reader
+Subjects:
+  Kind  Name  Namespace
+  ----  ----  ---------
+  User  John
+kumar@LAPTOP-R0LFCE9D:~/K8slearning/certificate_for_a_user/userjohn$ kubectl auth can-i get pods --as John
+yes
+
+"""
+
+how lets run the commads as John 
+for that we need to add the entry in Kubeconfig file 
+
+kubectl config set-credentials John --client-certificate=John.crt --client-key=John.key --embed-certs=true
+----> this will create user by setting cred in config file 
+
+kubectl config set-context John --cluster=kind-demo-cluster1 --user=John --namespace=default
+-----> this will create a context
+
+kubectl config use-context John
+---> this will set the context / currect user as John 
+
+how we can use kubenetes as john to check use below command
+
+-->kubectl auth whoami
+
+based on the authorization we provided John can send request to API-server  and access the information 
+
+ 
+
