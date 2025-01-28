@@ -152,6 +152,13 @@ To give John access to read pods, create a Role and RoleBinding:
     kubectl auth can-i get pods --as John
     ```
 
+## 2.3 view updated Kubeconfig file 
+    ```
+    kubectl config view
+     or 
+    by exec into the control plane 
+    path = $/HOME/.kube/config
+    ```
 ---
 
 ## 3. Conclusion
